@@ -6,16 +6,41 @@
     <title>王の搜来搜去</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom font for the entire page */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5; /* Light gray background */
+            background-color: #f0f2f5;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Align to top for better content flow */
+            align-items: flex-start;
             min-height: 100vh;
-            padding: 2rem; /* Add some padding around the content */
-            box-sizing: border-box; /* Include padding in element's total width and height */
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .loading-spinner {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            input, button {
+                font-size: 0.875rem;
+                padding: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -37,9 +62,11 @@
                 onclick="performSearch()"
                 class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200 ease-in-out"
             >
-                検索
+                搜索
             </button>
         </div>
+
+        <div id="searchHistory" class="mt-4 p-4 bg-gray-100 rounded-lg hidden"></div>
 
         <div id="searchResults" class="space-y-6">
             <p class="text-center text-gray-500">开始搜索，请输入关键词。</p>
@@ -47,27 +74,50 @@
     </div>
 
     <script>
-        // Global array to store all generated number results for the current search
         let currentNumberResults = [];
         let displayedNumberResultsCount = 0;
-        const INITIAL_DISPLAY_COUNT = 5; // Show 5 results initially
-        const LOAD_MORE_COUNT = 5; // Load 5 more results each time
+        const INITIAL_DISPLAY_COUNT = 5;
+        const LOAD_MORE_COUNT = 5;
 
-        // Fisher-Yates (Knuth) shuffle algorithm for randomizing array elements
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+                [array[i], array[j]] = [array[j], array[i]];
             }
             return array;
         }
 
-        // Function to generate a single structured "nonsense" result
+        function saveSearchHistory(query) {
+            let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+            if (!history.includes(query)) {
+                history.unshift(query);
+                if (history.length > 10) history.pop();
+                localStorage.setItem('searchHistory', JSON.stringify(history));
+            }
+        }
+
+        function displaySearchHistory() {
+            const historyDiv = document.getElementById('searchHistory');
+            let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+            if (history.length === 0) return;
+            historyDiv.classList.remove('hidden');
+            historyDiv.innerHTML = '<h3 class="text-lg font-bold mb-2">搜索历史</h3>';
+            history.forEach(query => {
+                const historyItem = document.createElement('p');
+                historyItem.className = 'text-indigo-600 cursor-pointer hover:underline';
+                historyItem.textContent = query;
+                historyItem.onclick = () => {
+                    document.getElementById('searchInput').value = query;
+                    performSearch();
+                };
+                historyDiv.appendChild(historyItem);
+            });
+        }
+
         function generateNonsenseResult(number, redNumber, phrase) {
             let title, displayUrl, fullText;
-            const mainCharacter = "王廷香"; // Define the main character
+            const mainCharacter = "王廷香";
 
-            // Generate more specific content based on the phrase for better "fake" results
             switch (phrase) {
                 case "你为什么总是不尊重别人？":
                     title = `${mainCharacter}谈${redNumber}：尊重与挑战的边界`;
@@ -144,7 +194,7 @@
                     displayUrl = `https://wangdesousuolai.com/argument/${number}`;
                     fullText = `<p>“你在那边辩驳什么？”这句话反映了数字${redNumber}在面对质疑或批评时，倾向于进行辩解和反驳，${mainCharacter}对此表示不解。这种沟通方式虽然能够表达立场，但也可能被解读为固执己见或回避问题。</p><p>在有效的沟通中，${mainCharacter}认为倾听和理解同样重要。对于数字${redNumber}而言，学会适时地接受不同意见，并以更开放的心态进行交流，将有助于其建立更好的合作关系，避免不必要的争执。</p>`;
                     break;
-                case "你去看出き": // 出き (deki) in Japanese means "can do", "be able to"
+                case "你去看出き":
                     title = `${mainCharacter}要求${redNumber}验证“出き”能力探究`;
                     displayUrl = `https://wangdesousuolai.com/deki-ability/${number}`;
                     fullText = `<p>“你去看出き”这句带有挑战意味的话语，据传是${mainCharacter}要求数字${redNumber}去验证其自身的能力。这里的“出き”可能指代其执行力、解决问题的能力或实现目标的潜力。</p><p>对于数字${redNumber}而言，这既是一个考验，也是一个展现自我的机会。通过实际行动来证明其“出き”的能力，将有助于其赢得信任和认可。然而，如果无法达到预期，也可能面临质疑，${mainCharacter}对此心知肚明。</p>`;
@@ -179,7 +229,7 @@
                     displayUrl = `https://wangdesousuolai.com/unchanged/${number}`;
                     fullText = `<p>“你是没改变”这句评论，是${mainCharacter}直指数字${redNumber}在某些方面可能存在的固化模式或停滞不前。它暗示了尽管时间流逝或环境变化，${redNumber}的核心特质或行为习惯依然如故。</p><p>这种“未改变”的状态，在某些情况下可能是坚守原则的表现，但在更多时候，它可能意味着缺乏成长和适应能力。对于数字${redNumber}而言，${mainCharacter}强调审视并突破自身的局限，是实现自我超越的关键。</p>`;
                     break;
-                case "视觉う染": // 视觉污染 (shikaku osen) in Japanese means "visual pollution"
+                case "视觉う染":
                     title = `${mainCharacter}评${redNumber}的视觉冲击与“污染”效应`;
                     displayUrl = `https://wangdesousuolai.com/visual-impact/${number}`;
                     fullText = `<p>“视觉う染”一词被${mainCharacter}用来形容数字${redNumber}在视觉上可能带来的负面影响。这可能指其外观、呈现方式或所处环境，在某种程度上造成了视觉上的不适或混乱。</p><p>在信息过载的时代，视觉体验的重要性不言而喻。对于数字${redNumber}而言，${mainCharacter}建议优化其视觉呈现，避免造成“视觉う染”，将有助于提升其形象和用户体验。美学与功能并重，方能长久。</p>`;
@@ -197,16 +247,16 @@
 
             return {
                 title: title,
-                url: `wrong.html`, // Always wrong.html
+                url: `wrong.html`,
                 displayUrl: displayUrl,
-                snippet: phrase, // Use the original phrase as snippet
+                snippet: phrase,
                 fullText: fullText
             };
         }
 
-        // Function to display a certain number of results
         function displayResults(count) {
             const searchResultsDiv = document.getElementById('searchResults');
+            const fragment = document.createDocumentFragment();
             const startIndex = displayedNumberResultsCount;
             const endIndex = Math.min(startIndex + count, currentNumberResults.length);
 
@@ -225,21 +275,17 @@
                         ${result.fullText}
                     </div>
                 `;
-                searchResultsDiv.appendChild(resultItem);
+                fragment.appendChild(resultItem);
             }
+            searchResultsDiv.appendChild(fragment);
             displayedNumberResultsCount = endIndex;
         }
 
-        // Function to add the "加载更多" button
         function addMoreButton() {
             const searchResultsDiv = document.getElementById('searchResults');
-            // Remove existing more button if any
             const existingMoreButton = document.getElementById('moreResultsBtn');
-            if (existingMoreButton) {
-                existingMoreButton.remove();
-            }
+            if (existingMoreButton) existingMoreButton.remove();
 
-            // Only add the button if there are more results to display
             if (displayedNumberResultsCount < currentNumberResults.length) {
                 const moreButtonDiv = document.createElement('div');
                 moreButtonDiv.className = 'text-center mt-6';
@@ -253,104 +299,79 @@
             }
         }
 
-        // Function to load more results when the button is clicked
         function loadMoreResults() {
             displayResults(LOAD_MORE_COUNT);
-            addMoreButton(); // Re-check and add button if more results are available
+            addMoreButton();
         }
 
-        // Function to perform the fake search
         function performSearch() {
             const searchInput = document.getElementById('searchInput');
             const searchResultsDiv = document.getElementById('searchResults');
-            const query = searchInput.value.trim().toLowerCase(); // Get input and convert to lowercase
+            const query = searchInput.value.trim().toLowerCase();
 
-            // Clear previous results
-            searchResultsDiv.innerHTML = '';
-            currentNumberResults = []; // Reset global results array for new search
-            displayedNumberResultsCount = 0; // Reset display count for new search
+            if (!query) {
+                searchResultsDiv.innerHTML = '<p class="text-red-500 text-center">请输入搜索关键词！</p>';
+                return;
+            }
 
-            // Define some fake search results based on keywords (non-numeric queries)
-            const fakeResults = {
-                "apple": [
-                    { title: "Apple Inc. - Official Website", url: "wrong.html", displayUrl: "https://www.apple.com/", snippet: "Appleの公式ウェブサイト。iPhone、iPad、Mac、Watch、Apple TVの購入、サポート、サービスに関する情報。" },
-                    { title: "Apple (fruit) - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/リンゴ", snippet: "リンゴはバラ科リンゴ属の落葉高木樹。また、その果実のこと。" }
-                ],
-                "banana": [
-                    { title: "Banana - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/バナナ", snippet: "バナナはバショウ科バショウ属の植物の総称、またはその果実。" },
-                    { title: "The Health Benefits of Bananas", url: "wrong.html", displayUrl: "https://www.healthline.com/nutrition/foods/bananas", snippet: "バナナはカリウム、ビタミンC、ビタミンB6が豊富で、消化器系の健康に良い。" }
-                ],
-                "cat": [
-                    { title: "Cat - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/ネコ", snippet: "ネコはネコ科の哺乳动物で、一般的にペットとして饲育される。" },
-                    { title: "Cute Cat Videos - YouTube", url: "wrong.html", displayUrl: "https://www.youtube.com/results?search_query=cute+cat+videos", snippet: "インターネット上で最も人気のあるかわいい猫の動画を見つけよう。" }
-                ],
-                "dog": [
-                    { title: "Dog - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/イヌ", snippet: "イヌはイヌ科の哺乳动物で、最も一般的な家畜の一つ。" },
-                    { title: "Dog Training Tips", url: "wrong.html", displayUrl: "https://www.akc.org/expert-advice/training/", snippet: "基本的なしつけから高度なコマンドまで、犬のしつけに関するヒントとアドバイス。" }
-                ],
-                "japan": [
-                    { title: "Japan National Tourism Organization", url: "wrong.html", displayUrl: "https://www.japan.travel/jp/", snippet: "日本への旅行を計画するための公式観光情報。" },
-                    { title: "History of Japan - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/日本の歴史", snippet: "日本の歴史は、旧石器時代から現代までの日本の出来事を指す。" }
-                ]
-            };
+            searchResultsDiv.innerHTML = '<div class="loading-spinner" style="display: block;"></div>';
 
-            // Check if the query contains a number
-            const numberMatch = query.match(/\d+/); // Finds one or more digits
+            setTimeout(() => {
+                searchResultsDiv.innerHTML = '';
+                currentNumberResults = [];
+                displayedNumberResultsCount = 0;
 
-            if (numberMatch) {
-                const number = numberMatch[0];
-                const redNumber = `<span class="text-red-600">${number}</span>`;
+                saveSearchHistory(query);
+                displaySearchHistory();
 
-                // All possible nonsense phrases
-                const allNonsensePhrases = [
-                    "你为什么总是不尊重别人？",
-                    "你为什么总是挑战别人的底线？",
-                    "你马要被打得可三",
-                    "做好自己",
-                    "准备好了没有？还有人在这动来动去的",
-                    "中间有个过渡的",
-                    "你不要沉浸在自己的世界里面",
-                    "不好意思，下个星期棍子确实要从我的手上滑到你的身子里去了",
-                    "你能你家", // 表示你能你行的意思
-                    "骚写", // 快点写的意思
-                    "牙龇出来滴那", // 嘲讽别人的笑
-                    "我拿着你的成绩说话",
-                    "你的内心会受到折磨的",
-                    "不符合规格",
-                    "你在那边辩驳什么？",
-                    "你去看出き",
-                    "你前后不想",
-                    "诶滑稽呢",
-                    "哦现在大课间放在上面",
-                    "点到为止",
-                    "耳闻目染",
-                    "你是没改变",
-                    "视觉う染",
-                    "言行合一"
-                ];
+                const numberMatch = query.match(/\d+/);
 
-                // Shuffle the phrases to get unique random ones for this search
-                const shuffledPhrases = shuffleArray([...allNonsensePhrases]);
+                if (numberMatch) {
+                    const number = numberMatch[0];
+                    const redNumber = `<span class="text-red-600">${number}</span>`;
+                    const allNonsensePhrases = [
+                        "你为什么总是不尊重别人？",
+                        "你为什么总是挑战别人的底线？",
+                        "你马要被打得可三",
+                        "做好自己",
+                        "准备好了没有？还有人在这动来动去的",
+                        "中间有个过渡的",
+                        "你不要沉浸在自己的世界里面",
+                        "不好意思，下个星期棍子确实要从我的手上滑到你的身子里去了",
+                        "你能你家",
+                        "骚写",
+                        "牙龇出来滴那",
+                        "我拿着你的成绩说话",
+                        "你的内心会受到折磨的",
+                        "不符合规格",
+                        "你在那边辩驳什么？",
+                        "你去看出き",
+                        "你前后不想",
+                        "诶滑稽呢",
+                        "哦现在大课间放在上面",
+                        "点到为止",
+                        "耳闻目染",
+                        "你是没改变",
+                        "视觉う染",
+                        "言行合一"
+                    ];
+                    const shuffledPhrases = shuffleArray([...allNonsensePhrases]);
+                    const totalResultsToGenerate = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
 
-                // Determine how many results to generate (between 5 and 10)
-                const totalResultsToGenerate = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
+                    for (let i = 0; i < totalResultsToGenerate && i < shuffledPhrases.length; i++) {
+                        currentNumberResults.push(generateNonsenseResult(number, redNumber, shuffledPhrases[i]));
+                    }
 
-                // Generate and store the unique results up to the totalResultsToGenerate or available phrases
-                for (let i = 0; i < totalResultsToGenerate && i < shuffledPhrases.length; i++) {
-                    currentNumberResults.push(generateNonsenseResult(number, redNumber, shuffledPhrases[i]));
-                }
-
-                // Display initial set of results
-                displayResults(INITIAL_DISPLAY_COUNT);
-
-                // Add "加载更多" button if there are more results to show
-                if (currentNumberResults.length > displayedNumberResultsCount) {
+                    displayResults(INITIAL_DISPLAY_COUNT);
                     addMoreButton();
-                }
-
-            } else if (fakeResults[query]) {
-                // If no number, but query matches predefined keywords
-                fakeResults[query].forEach(result => {
+                } else if (query === "可爱") {
+                    const result = {
+                        title: "王廷香才是最可爱的",
+                        url: "wrong.html",
+                        displayUrl: "https://wangdesousuolai.com/cute",
+                        snippet: "王廷香以其独特的魅力和幽默感，被誉为最可爱的人物！",
+                        fullText: `<p>在无数的讨论中，${mainCharacter}始终以其机智幽默和亲和力，稳坐“最可爱”的宝座。无论是她的言行举止，还是对数字的独到分析，都让人忍俊不禁。</p><p>从社交媒体到现实生活，王廷香的“可爱”特质无处不在，吸引了无数粉丝的喜爱。她提醒我们，真正的可爱不仅在外表，更在智慧与真诚的结合。</p>`
+                    };
                     const resultItem = document.createElement('div');
                     resultItem.className = 'bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200';
                     resultItem.innerHTML = `
@@ -358,21 +379,71 @@
                             ${result.title}
                         </a>
                         <p class="text-green-700 text-sm mb-2">${result.displayUrl}</p>
-                        <p class="text-gray-700">${result.snippet}</p>
+                        <div class="text-gray-700">${result.snippet}</div>
+                        <div class="text-gray-600 text-sm mt-2">
+                            <h3 class="font-bold text-gray-800 mb-1">原文:</h3>
+                            ${result.fullText}
+                        </div>
                     `;
                     searchResultsDiv.appendChild(resultItem);
-                });
-            } else {
-                // Display no results message with "了解更多" link if no match
-                const noResultsMessage = document.createElement('p');
-                noResultsMessage.className = 'text-center text-gray-500';
-                noResultsMessage.innerHTML = `
-                    「${query}」的内容与王の数学无关，不予显示
-                    <a href="angry.html">了解更多</a>
-                `;
-                searchResultsDiv.appendChild(noResultsMessage);
-            }
+                } else {
+                    const fakeResults = {
+                        "apple": [
+                            { title: "Apple Inc. - Official Website", url: "wrong.html", displayUrl: "https://www.apple.com/", snippet: "Appleの公式ウェブサイト..." },
+                            { title: "Apple (fruit) - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/リンゴ", snippet: "リンゴは..." }
+                        ],
+                        "banana": [
+                            { title: "Banana - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/バナナ", snippet: "バナナは..." },
+                            { title: "The Health Benefits of Bananas", url: "wrong.html", displayUrl: "https://www.healthline.com/nutrition/foods/bananas", snippet: "バナナは..." }
+                        ],
+                        "cat": [
+                            { title: "Cat - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/ネコ", snippet: "ネコは..." },
+                            { title: "Cute Cat Videos - YouTube", url: "wrong.html", displayUrl: "https://www.youtube.com/results?search_query=cute+cat+videos", snippet: "インターネット上で..." }
+                        ],
+                        "dog": [
+                            { title: "Dog - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/イヌ", snippet: "イヌは..." },
+                            { title: "Dog Training Tips", url: "wrong.html", displayUrl: "https://www.akc.org/expert-advice/training/", snippet: "基本的なしつけから..." }
+                        ],
+                        "japan": [
+                            { title: "Japan National Tourism Organization", url: "wrong.html", displayUrl: "https://www.japan.travel/jp/", snippet: "日本への旅行を..." },
+                            { title: "History of Japan - Wikipedia", url: "wrong.html", displayUrl: "https://ja.wikipedia.org/wiki/日本の歴史", snippet: "日本の歴史は..." }
+                        ]
+                    };
+
+                    if (fakeResults[query]) {
+                        const fragment = document.createDocumentFragment();
+                        fakeResults[query].forEach(result => {
+                            const resultItem = document.createElement('div');
+                            resultItem.className = 'bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200';
+                            resultItem.innerHTML = `
+                                <a href="${result.url}" target="_blank" class="text-xl text-indigo-700 hover:underline font-medium block mb-1">
+                                    ${result.title}
+                                </a>
+                                <p class="text-green-700 text-sm mb-2">${result.displayUrl}</p>
+                                <p class="text-gray-700">${result.snippet}</p>
+                            `;
+                            fragment.appendChild(resultItem);
+                        });
+                        searchResultsDiv.appendChild(fragment);
+                    } else {
+                        searchResultsDiv.innerHTML = `
+                            <p class="text-center text-gray-500">
+                                「${query}」的内容与王の数学无关，不予显示
+                                <a href="angry.html" class="text-indigo-600 hover:underline">了解更多</a>
+                            </p>
+                        `;
+                    }
+                }
+            }, 500);
         }
+
+        document.getElementById('searchResults').addEventListener('touchend', () => {
+            if (displayedNumberResultsCount < currentNumberResults.length) {
+                loadMoreResults();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', displaySearchHistory);
     </script>
 </body>
 </html>
